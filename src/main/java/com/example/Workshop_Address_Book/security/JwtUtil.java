@@ -1,9 +1,7 @@
 
 package com.example.Workshop_Address_Book.security;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,13 +16,13 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String secret;
 
-    private static final long EXPIRATION_TIME = 86400000; // 1 day
-
+    private static final long EXPIRATION_TIME = 15 * 60 * 1000; // 15 minutes
 
     private Key getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secret);
         return Keys.hmacShaKeyFor(keyBytes);
     }
+
     public String generateToken(String email) {
         return Jwts.builder()
                 .setSubject(email)
@@ -34,12 +32,27 @@ public class JwtUtil {
                 .compact();
     }
 
-    public String extractUsername(String token) {
-        Claims claims = Jwts.parserBuilder()
+    public String extractEmailFromToken(String token) {
+        return getClaims(token).getSubject();
+    }
+
+    public boolean validateToken(String token) {
+        try {
+            getClaims(token);
+            return true;
+        } catch (ExpiredJwtException e) {
+            System.out.println("Token expired: " + e.getMessage());
+        } catch (JwtException e) {
+            System.out.println("Invalid token: " + e.getMessage());
+        }
+        return false;
+    }
+
+    private Claims getClaims(String token) {
+        return Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
-        return claims.getSubject();
     }
 }
