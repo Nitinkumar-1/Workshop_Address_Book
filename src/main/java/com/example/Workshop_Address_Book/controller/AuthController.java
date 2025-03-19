@@ -1,4 +1,3 @@
-
 package com.example.Workshop_Address_Book.controller;
 
 import com.example.Workshop_Address_Book.dto.UserDTO;
@@ -7,6 +6,7 @@ import com.example.Workshop_Address_Book.service.EmailService;
 import com.example.Workshop_Address_Book.service.UserService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,46 +18,59 @@ public class AuthController {
 
     @Autowired
     private UserService userService;
+
     @Autowired
     private JwtUtil jwtUtil;
+
     @Autowired
-    private  EmailService emailService;
+    private EmailService emailService;
 
     @PostMapping("/register")
     public ResponseEntity<String> registerUser(@Valid @RequestBody UserDTO userDTO) {
-        return ResponseEntity.ok(userService.registerUser(userDTO));
+        String response = userService.registerUser(userDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, String>> loginUser(@RequestBody Map<String, String> loginRequest) {
-        String token = userService.loginUser(loginRequest.get("email"), loginRequest.get("password"));
+        String email = loginRequest.get("email");
+        String password = loginRequest.get("password");
+
+        if (email == null || password == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", "Email and password are required"));
+        }
+
+        String token = userService.loginUser(email, password);
         return ResponseEntity.ok(Map.of("token", token));
     }
-    // 🔹 Forgot Password - Generate & Send Reset Token
+
     @PostMapping("/forgot-password")
-    public String forgotPassword(@RequestBody Map<String, String> request) {
+    public ResponseEntity<String> forgotPassword(@RequestBody Map<String, String> request) {
         String email = request.get("email");
-        if (!userService.existsByEmail(email)) {
-            return "User not found!";
+        if (email == null || !userService.existsByEmail(email)) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found!");
         }
 
         String resetToken = jwtUtil.generateToken(email);
         emailService.sendResetEmail(email, resetToken);
 
-        return "Password reset link sent!";
+        return ResponseEntity.ok("Password reset link sent!");
     }
 
-    // 🔹 Reset Password - Verify Token & Update Password
     @PostMapping("/reset-password")
-    public String resetPassword(@RequestParam("token") String token, @RequestBody Map<String, String> request) {
-        if (!jwtUtil.validateToken(token)) {
-            return "Invalid or expired token!";
+    public ResponseEntity<String> resetPassword(@RequestParam("token") String token, @RequestBody Map<String, String> request) {
+        if (token == null || !jwtUtil.validateToken(token)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid or expired token!");
         }
 
         String email = jwtUtil.extractEmailFromToken(token);
         String newPassword = request.get("password");
 
+        if (newPassword == null || newPassword.isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("New password cannot be empty!");
+        }
+
         userService.updatePassword(email, newPassword);
-        return "Password updated successfully!";
+        return ResponseEntity.ok("Password updated successfully!");
     }
 }

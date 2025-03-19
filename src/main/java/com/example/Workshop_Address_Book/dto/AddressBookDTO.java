@@ -22,4 +22,12 @@ public class AddressBookDTO {
 
     @NotBlank(message = "Address cannot be empty")
     private String address;
+
+//    public AddressBookDTO(String name, String email, String phoneNumber, String address) {
+//        this.name = name;
+//        this.email = email;
+//        this.phoneNumber = phoneNumber;
+//        this.address = address;
+//    }
+
 }

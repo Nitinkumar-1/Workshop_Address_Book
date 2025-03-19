@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.security.Key;
 import java.util.Date;
+import java.util.Base64;
 
 @Service
 public class JwtUtil {
@@ -16,13 +17,13 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String secret;
 
-    private static final long EXPIRATION_TIME = 15 * 60 * 1000; // 15 minutes
+    private static final long EXPIRATION_TIME = 15 * 60 *1000; // 1 day
+
 
     private Key getSigningKey() {
         byte[] keyBytes = Decoders.BASE64.decode(secret);
         return Keys.hmacShaKeyFor(keyBytes);
     }
-
     public String generateToken(String email) {
         return Jwts.builder()
                 .setSubject(email)
@@ -31,28 +32,31 @@ public class JwtUtil {
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
-
     public String extractEmailFromToken(String token) {
-        return getClaims(token).getSubject();
-    }
-
-    public boolean validateToken(String token) {
-        try {
-            getClaims(token);
-            return true;
-        } catch (ExpiredJwtException e) {
-            System.out.println("Token expired: " + e.getMessage());
-        } catch (JwtException e) {
-            System.out.println("Invalid token: " + e.getMessage());
-        }
-        return false;
-    }
-
-    private Claims getClaims(String token) {
-        return Jwts.parserBuilder()
+        Claims claims = Jwts.parserBuilder()
                 .setSigningKey(getSigningKey())
                 .build()
                 .parseClaimsJws(token)
                 .getBody();
+        return claims.getSubject();
+    }
+    public boolean validateToken(String token) {
+        try {
+            Jwts.parserBuilder().setSigningKey(getSigningKey()).build().parseClaimsJws(token);
+            return true;
+        } catch (ExpiredJwtException e) {
+            return false; // Token expired
+        } catch (JwtException e) {
+            return false; // Invalid token
+        }
+    }
+
+    public String extractUsername(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+        return claims.getSubject();
     }
 }
